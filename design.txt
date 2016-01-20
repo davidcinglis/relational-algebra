@@ -1,0 +1,49 @@
+PARSER
+    The parser takes an input line of text and parses it into a series of plan nodes
+
+    SELECT
+        The select condition is parsed as a lambda with 2 arguments 
+            (e.g. 'salary >= 100000' becomes:
+                lambda x, y: x >= y
+                arg1: "salary"
+                arg2: 100000 )
+        unary; single child node
+
+    PROJECT
+        Each project argument is parsed as a lambda with a list of arguments
+            Usually, the lambda will take a single argument and just return that argument
+            It is built this way to handle the generalized projection case, in which the lambda will operate on the arguments
+        unary; single child node
+
+    UNION/INTERSECTION/SET DIFFERENCE
+        binary; two child nodes
+        no other special parsing needed
+
+    JOIN
+        binary; two child nodes
+        CROSS JOIN
+            nothing special
+        
+        THETA JOIN
+            cross join with conditions
+            parse conditions like select conditions (2 arg lambda)
+
+        NATURAL JOIN
+            theta join with equality conditions on columns with the same name
+            represent as a separate node type and let the executor sort out the column names
+
+        OUTER JOINS
+            natural join with total participation from one or both sides
+            distinguish from natural join with argument to natural join node constructor (isLeftOuter, isRightOuter)
+
+    RENAME
+        parse new schema into a list of strings and pass that into the node constructor
+
+    ASSIGNMENT
+        pass name of new relation into node constructor
+
+    DIVISION
+        simple binary operator
+
+
+PLAN NODES
