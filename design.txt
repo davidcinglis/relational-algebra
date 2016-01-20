@@ -10,7 +10,7 @@ PARSER
         unary; single child node
 
     PROJECT
-        Each project argument is parsed as a lambda with a list of arguments
+        Each project argument is parsed as a dictionary of lambdas and lists of arguments
             Usually, the lambda will take a single argument and just return that argument
             It is built this way to handle the generalized projection case, in which the lambda will operate on the arguments
         unary; single child node
@@ -46,4 +46,47 @@ PARSER
         simple binary operator
 
 
-PLAN NODES
+PLAN NODE EXECUTION
+    SELECT
+        no schema change
+        if arg is in schema, replace it with that column value for each tuple
+        apply lambda to args, adding tuple to output for positive inputs
+
+    PROJECT
+        for each tuple:
+            for each lambda in input dictionary:
+                iterate through args and replace with column value if arg is in schema
+                apply lambda to modified args, add result to output tuple
+        schema becomes the values of the input dictionary (overwrite if 'as' keyword is used)
+
+    UNION/INTERSECTION/SET DIFFERENCE
+        no schema change
+        probably an easy way to do these in python since tuples are stored as lists
+
+    JOIN
+        CROSS JOIN
+            schema becomes concatenation of two input schemas
+            generate with nested for loops
+
+        THETA JOIN
+            can model as cross join + select with some schema juggling
+            schema becomes concatenation of two input schemas
+
+        NATURAL JOIN
+            iterate through input schemas and find columns with the same name
+            generate conditions for these columns
+            create theta join to evaluate
+            delete 2nd instance of duplicate column from result
+
+        OUTER JOIN
+            can pre-process tuples with no counterpart, then perform a natural join on the remaining tuples
+
+    RENAME
+        create new relation, replace old schema with input schema
+        tuples are unchanged
+
+    DIVISION
+        compare schemas to find common schema
+        group by remaining attributes (set difference) and find matching values 
+
+
