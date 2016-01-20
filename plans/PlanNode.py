@@ -1,10 +1,13 @@
 from abc import ABCMeta, abstractmethod
 
-class Plan:
-    def __init__(self, nodes):
-        self.nodes = nodes
 
-    def execute
+class Plan:
+    def __init__(self, head_node):
+        self.head_node = head_node
+
+    def execute(self):
+        return self.head_node.execute()
+
 
 class Relation:
     def __init__(self, schema, tuples):
@@ -19,15 +22,18 @@ class PlanNode:
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    # right_relation will be null if the node type only takes one input relation
-    def execute(self, left_relation, right_relation): pass
+
+    def execute(self):
+        pass
 
 
 class ProjectNode(PlanNode):
-    def __init__(self, schema):
+    def __init__(self, schema, left_child):
         self.schema = schema
+        self.left_child = left_child
 
-    def execute(self, left_relation, right_relation):
+    def execute(self):
+        left_relation = self.left_child.execute()
         out_relation = Relation(self.schema, [])
         for in_tuple in left_relation.tuples:
             out_tuple = []
@@ -36,28 +42,16 @@ class ProjectNode(PlanNode):
             out_relation.tuples.append(out_tuple)
         return out_relation
 
-'''
-class JoinNode(PlanNode):
-    def __init__(self, conditions, join_type):
-        self.conditions = conditions
-        self.join_type = join_type
-
-    def execute(self, left_relation, right_relation):
-        out_relation = Relation(self.schema, [])
-        for left_tuple in left_relation.tuples:
-            for right_tuple in right_relation.tuples:
-
-        if self.join_type == 'cross':
-'''
-
 
 class SelectNode(PlanNode):
-    def __init__(self, condition, arg1, arg2):
+    def __init__(self, condition, arg1, arg2, left_child):
         self.condition = condition
         self.arg1 = arg1
         self.arg2 = arg2
+        self.left_child = left_child
 
-    def execute(self, left_relation, right_relation):
+    def execute(self):
+        left_relation = self.left_child.execute()
         out_relation = Relation(left_relation.schema, [])
         arg1 = self.arg1
         arg2 = self.arg2
@@ -69,6 +63,7 @@ class SelectNode(PlanNode):
             if self.condition(arg1, arg2):
                 out_relation.tuples.append(tuple)
         return out_relation
+
 
 f = lambda x, y: x == y
 test_schema = ["a", "b", "c"]
