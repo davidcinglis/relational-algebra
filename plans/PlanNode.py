@@ -75,12 +75,16 @@ class CartesianProductNode(PlanNode):
         left_relation = self.left_child.execute()
         right_relation = self.right_child.execute()
 
+        # schema is just the combination of the two schemas, prefixed with their respective relation names
         schema = ["%s.%s" % (left_relation.name, column) for column in left_relation.schema]
         schema.extend(["%s.%s" % (right_relation.name, column) for column in right_relation.schema])
         out_relation = Relation(schema, [], "%s_%s" % (left_relation.name, right_relation.name))
+
+        # generate every combination of tuples and add to output
         for left_tuple in left_relation.tuples:
             for right_tuple in right_relation.tuples:
                 out_relation.tuples.append(left_tuple + right_tuple)
+
         return out_relation
 
 
@@ -93,6 +97,7 @@ class NaturalJoinNode(PlanNode):
         left_relation = self.left_child.execute()
         right_relation = self.right_child.execute()
 
+        # we figure out the names of the attributes shared by both children
         common_schema = [] # the attributes shared by both children
         duplicate_indices = [] # the indices of the duplicate attributes in the right schema
         for attribute in left_relation.schema:
@@ -100,12 +105,15 @@ class NaturalJoinNode(PlanNode):
                 common_schema.append(attribute)
                 duplicate_indices.append(right_relation.schema.index(attribute))
 
+        # our new schema is the left schema and all the non-shared attributes of the right schema
         new_right_schema = [x for x in right_relation.schema if x not in common_schema]
         out_relation = Relation(left_relation.schema + new_right_schema, [], "%s_%s" % (left_relation.name, right_relation.name))
 
         for left_tuple in left_relation.tuples:
             for right_tuple in right_relation.tuples:
+                # check if every attribute in the common schema is equal across the two tuples
                 if all(left_tuple[left_relation.schema.index(attr)] == right_tuple[right_relation.schema.index(attr)] for attr in common_schema):
+                    # if so add that tuple to the output, excluding the attributes at the duplicate indices
                     out_tuple = left_tuple + [right_tuple[i] for i in range(len(right_tuple)) if i not in duplicate_indices]
                     out_relation.tuples.append(out_tuple)
         return out_relation
@@ -124,12 +132,18 @@ class ProjectNode(PlanNode):
         for in_tuple in left_relation.tuples:
             out_tuple = []
             for attribute, projection, args in zip(self.schema, self.projections, self.args_lists):
+
+                # if the argument is an attribute name, replace that argument with the tuple's value for that attribute
                 args_copy = copy.copy(args)
                 for i in range(len(args)):
                     if args[i] in left_relation.schema:
                         args_copy[i] = in_tuple[left_relation.schema.index(args[i])]
+
+                # apply the projection lambda to the arguments and add the result to the output tuple
                 out_tuple.append(projection(*args_copy))
+
             out_relation.tuples.append(out_tuple)
+
         return out_relation
 
 
@@ -143,15 +157,20 @@ class SelectNode(PlanNode):
     def execute(self):
         left_relation = self.left_child.execute()
         out_relation = Relation(left_relation.schema, [])
-        arg1 = self.arg1
-        arg2 = self.arg2
+        arg1 = copy.copy(self.arg1)
+        arg2 = copy.copy(self.arg2)
         for tuple in left_relation.tuples:
+
+            # if the argument is an attribute name, replace that argument with the tuple's value for that attribute
             if self.arg1 in left_relation.schema:
                 arg1 = tuple[left_relation.schema.index(self.arg1)]
             if self.arg2 in left_relation.schema:
                 arg2 = tuple[left_relation.schema.index(self.arg2)]
+
+            # pass those arguments into the condition lambda, and add the tuple if the condition is fulfilled
             if self.condition(arg1, arg2):
                 out_relation.tuples.append(tuple)
+
         return out_relation
 
 
@@ -166,6 +185,8 @@ class UnionNode(PlanNode):
 
         out_relation = Relation(left_relation.schema, [], "%s_%s" % (left_relation.name, right_relation.name))
         out_relation.tuples += left_relation.tuples
+
+        # add the tuples from the right relation that haven't already been added
         out_relation.tuples += [tuple for tuple in right_relation.tuples if tuple not in left_relation.tuples]
         return out_relation
 
@@ -180,6 +201,8 @@ class IntersectionNode(PlanNode):
         right_relation = self.right_child.execute()
 
         out_relation = Relation(left_relation.schema, [], "%s_%s" % (left_relation.name, right_relation.name))
+
+        # add the tuples from the left relation that are also in the right relation
         out_relation.tuples += [tuple for tuple in left_relation.tuples if tuple in right_relation.tuples]
         return out_relation
 
@@ -193,11 +216,13 @@ class SetDifferenceNode(PlanNode):
         right_relation = self.right_child.execute()
 
         out_relation = Relation(left_relation.schema, [], "%s_%s" % (left_relation.name, right_relation.name))
+
+        # add the tuples from the left relation that are not in the right relation
         out_relation.tuples += [tuple for tuple in left_relation.tuples if tuple not in right_relation.tuples]
         return out_relation
 
 
-# temporary code
+# temporary test code
 f = lambda x, y: x + y
 g = lambda x: x
 test_schema_1 = ["a", "b", "c"]
