@@ -1,11 +1,11 @@
 import PlanNode as pn
 
 # Runs a list of tests, printing the number of successes and the number of total tests
-def runTests():
+def run_tests():
     total_tests = 0
     successes = 0
     tests = [SetDifferenceTest, LeftOuterJoinTest, RightOuterJoinTest, UnionTest, \
-             IntersectionTest, CartesianProductTest, ProjectTest, SelectTest]
+             IntersectionTest, CartesianProductTest, ProjectTest, SelectTest, SumTest, GroupedSumTest]
     for t in tests:
         total_tests += 1
         successes += t()
@@ -43,6 +43,12 @@ def IntersectionTest():
 
     test_relation_1 = pn.Relation(test_schema, test_tuples_1, "test1")
     test_relation_2 = pn.Relation(test_schema, test_tuples_2, "test2")
+
+    print "This test calculates the intersection of the following tables:"
+    test_relation_1.printOut()
+    print "and"
+    test_relation_2.printOut()
+
     expected_output_relation = pn.Relation(test_schema, [test_tuple_2], "expected_output")
     test_node = pn.IntersectionNode(test_relation_1, test_relation_2)
     return test("Intersection Test 1", test_node, expected_output_relation)
@@ -59,6 +65,12 @@ def SetDifferenceTest():
 
     test_relation_1 = pn.Relation(test_schema, test_tuples_1, "test1")
     test_relation_2 = pn.Relation(test_schema, test_tuples_2, "test2")
+
+    print "This test calculates the set difference of the following tables:"
+    test_relation_1.printOut()
+    print "and"
+    test_relation_2.printOut()
+
     expected_output_relation = pn.Relation(test_schema, [test_tuple_2, test_tuple_1], "expected_output")
     test_node = pn.SetDifferenceNode(test_relation_1, test_relation_2)
     return test("Set Difference Test 1", test_node, expected_output_relation)
@@ -75,6 +87,12 @@ def UnionTest():
 
     test_relation_1 = pn.Relation(test_schema, test_tuples_1, "test1")
     test_relation_2 = pn.Relation(test_schema, test_tuples_2, "test2")
+
+    print "This test calculates the union of the following tables:"
+    test_relation_1.printOut()
+    print "and"
+    test_relation_2.printOut()
+
     expected_output_relation = pn.Relation(test_schema, [test_tuple_1, test_tuple_2, test_tuple_3], "expected_output")
     test_node = pn.UnionNode(test_relation_1, test_relation_2)
     return test("Union Test 1", test_node, expected_output_relation)
@@ -147,5 +165,27 @@ def SelectTest():
     test_node = pn.SelectNode(condition_lambda, "a", "c", test_relation_1)
     return test("Select Test 1", test_node, expected_output_relation)
 
-runTests()
+
+def SumTest():
+    test_schema_1 = ["a", "b"]
+    test_tuple_1 = [1, 2]
+    test_tuple_2 = [5, 7]
+    test_relation_1 = pn.Relation(test_schema_1, [test_tuple_1, test_tuple_2], "test1")
+    test_aggregation = pn.Aggregation("sum", "b", "sum_b")
+    expected_output_relation = pn.Relation(["sum_b"], [[9]], "expected_output")
+    test_node = pn.AggregationNode(test_relation_1, [], test_aggregation)
+    return test("Sum Test 1", test_node, expected_output_relation)
+
+def GroupedSumTest():
+    test_schema_1 = ["a", "b"]
+    test_tuple_1 = ["ruddock", 6]
+    test_tuple_2 = ["lloyd", 2]
+    test_tuple_3 = ["lloyd", 3]
+    test_relation_1 = pn.Relation(test_schema_1, [test_tuple_1, test_tuple_2, test_tuple_3], "test1")
+    test_aggregation = pn.Aggregation("sum", "b", "sum_b")
+    expected_output_relation = pn.Relation(["a", "sum_b"], [["ruddock", 6], ["lloyd", 5]], "expected_output")
+    test_node = pn.AggregationNode(test_relation_1, "a", test_aggregation)
+    return test("Grouped Sum Test 1", test_node, expected_output_relation)
+
+run_tests()
 

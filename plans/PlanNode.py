@@ -1,13 +1,56 @@
 from abc import ABCMeta, abstractmethod
 import copy
 
+
+class Aggregation:
+    def _aggregate_sum(self, input_relation, attribute):
+        return sum(filter(None, [input_relation.attribute_value(attribute, tup) for tup in input_relation.tuples]))
+
+    def _aggregate_min(self, input_relation, attribute):
+        arr = filter(None, [input_relation.attribute_value(attribute, tup) for tup in input_relation.tuples])
+        if arr:
+            return min(filter(None, arr))
+        else:
+            return None
+
+    def _aggregate_max(self, input_relation, attribute):
+        arr = filter(None, [input_relation.attribute_value(attribute, tup) for tup in input_relation.tuples])
+        if arr:
+            return max(filter(None, arr))
+        else:
+            return None
+
+    def _aggregate_count(self, input_relation, attribute):
+        return len(filter(None, [input_relation.attribute_value(attribute, tup) for tup in input_relation.tuples]))
+
+    def _aggregate_avg(self, input_relation, attribute):
+        arr = filter(None, [input_relation.attribute_value(attribute, tup) for tup in input_relation.tuples])
+        if arr:
+            return sum(arr) / float(len(arr))
+
+    function_mappings = {
+        'sum': _aggregate_sum,
+        'max': _aggregate_max,
+        'min': _aggregate_min,
+        'count': _aggregate_count,
+        'avg': _aggregate_avg
+    }
+
+    # agg_function is a string representing the input aggregate function (sum, min, max, etc.)
+    # attribute is the attribute that the aggregate function is being applied to
+    # result_name is the name to give the result of the aggregate function
+    def __init__(self, agg_function, attribute, result_name):
+        self.agg_function = self.function_mappings[agg_function]
+        self.attribute = attribute
+        self.result_name = result_name
+
 class Relation:
     def __init__(self, schema, tuples, name):
         self.schema = schema
         self.tuples = tuples
         self.name = name
 
-    def addTuple(self, tuple):
+    def add_tuple(self, tuple):
         self.tuples.append(tuple)
 
     def execute(self):
@@ -250,4 +293,33 @@ class SetDifferenceNode(PlanNode):
 
         # add the tuples from the left relation that are not in the right relation
         out_relation.tuples += [tuple for tuple in left_relation.tuples if tuple not in right_relation.tuples]
+        return out_relation
+
+class AggregationNode(PlanNode):
+    # left_child is a relation
+    # grouping_attributes is a dictionary; the key is an aggregate function string and the value is the name of the column attribute being aggregated
+    def __init__(self, left_child, grouping_attribute, aggregation):
+        self.left_child = left_child
+        self.aggregation = aggregation
+        self.grouping_attribute = grouping_attribute
+
+    def execute(self):
+        left_relation = self.left_child.execute()
+        out_relation = Relation([], [], left_relation.name)
+
+        if not self.grouping_attribute: # simple aggregation case
+            out_relation.schema = [self.aggregation.result_name]
+            out_relation.tuples.append([self.aggregation.agg_function(self, left_relation, self.aggregation.attribute)])
+
+        else: # grouping case
+            out_relation.schema = [self.grouping_attribute, self.aggregation.result_name]
+            distinct_values = set([left_relation.attribute_value(self.grouping_attribute, tup) for tup in left_relation.tuples])
+
+            for val in distinct_values:
+                temp_relation = Relation(self.left_child.schema, [], self.left_child.name)
+                temp_relation.tuples = [tup for tup in left_relation.tuples
+                                        if left_relation.attribute_value(self.grouping_attribute, tup) == val]
+
+                out_relation.tuples.append([val, self.aggregation.agg_function(self, temp_relation, self.aggregation.attribute)])
+
         return out_relation
