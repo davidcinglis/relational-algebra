@@ -1,6 +1,6 @@
 from abc import ABCMeta, abstractmethod
 import copy
-
+import re
 
 class Aggregation:
     def _aggregate_sum(self, input_relation, attribute):
@@ -181,15 +181,15 @@ class NaturalJoinNode(PlanNode):
         return out_relation
 
 class ProjectNode(PlanNode):
-    # projections is a list of lambdas
-    # args_lists is a list of lists of arguments, these will get passed into the corresponding lambda
-    def __init__(self, schema, left_child, projections, args_lists):
-        assert len(schema) == len(projections)
+    # projections is a list of strings
+    # args_lists is a list of lists of argument strings, these will get passed into the corresponding lambda
+    def __init__(self, schema, left_child, projection_attributes, args_lists):
+        assert len(schema) == len(projection_attributes)
         assert len(schema) == len(args_lists)
 
         self.schema = schema
         self.left_child = left_child
-        self.projections = projections
+        self.projections = projection_attributes
         self.args_lists = args_lists
 
     def execute(self):
@@ -199,14 +199,12 @@ class ProjectNode(PlanNode):
             out_tuple = []
             for attribute, projection, args in zip(self.schema, self.projections, self.args_lists):
 
-                # if the argument is an attribute name, replace that argument with the tuple's value for that attribute
-                args_copy = copy.copy(args)
-                for i in range(len(args)):
-                    if args[i] in left_relation.schema:
-                        args_copy[i] = in_tuple[left_relation.schema.index(args[i])]
-
-                # apply the projection lambda to the arguments and add the result to the output tuple
-                out_tuple.append(projection(*args_copy))
+                for arg in args:
+                    if re.match("[-+]?[0-9]*\.?[0-9]+", str(left_relation.attribute_value(arg, in_tuple))):
+                        exec("%s = %s" % (arg, left_relation.attribute_value(arg, in_tuple)))
+                    else:
+                        exec("%s = '%s'" % (arg, left_relation.attribute_value(arg, in_tuple)))
+                out_tuple.append(eval(projection))
 
             out_relation.tuples.append(out_tuple)
 
@@ -216,28 +214,25 @@ class ProjectNode(PlanNode):
 class SelectNode(PlanNode):
     # condition is a lambda of two arguments that returns a boolean
     # arg1 and arg2 can be strings or numbers
-    def __init__(self, condition, arg1, arg2, left_child):
-        self.condition = condition
-        self.arg1 = arg1
-        self.arg2 = arg2
+    def __init__(self, predicate, args, left_child):
+        self.predicate = predicate
+        self.args = args
         self.left_child = left_child
 
     def execute(self):
         left_relation = self.left_child.execute()
         out_relation = Relation(left_relation.schema, [], left_relation.name)
-        arg1 = copy.copy(self.arg1)
-        arg2 = copy.copy(self.arg2)
-        for tuple in left_relation.tuples:
-
+        for tup in left_relation.tuples:
             # if the argument is an attribute name, replace that argument with the tuple's value for that attribute
-            if self.arg1 in left_relation.schema:
-                arg1 = tuple[left_relation.schema.index(self.arg1)]
-            if self.arg2 in left_relation.schema:
-                arg2 = tuple[left_relation.schema.index(self.arg2)]
+            for arg in self.args:
+                if re.match("[-+]?[0-9]*\.?[0-9]+", str(left_relation.attribute_value(arg, tup))):
+                    exec("%s = %s" % (arg, left_relation.attribute_value(arg, tup)))
+                else:
+                    exec("%s = '%s'" % (arg, left_relation.attribute_value(arg, tup)))
 
             # pass those arguments into the condition lambda, and add the tuple if the condition is fulfilled
-            if self.condition(arg1, arg2):
-                out_relation.tuples.append(tuple)
+            if eval(self.predicate):
+                out_relation.tuples.append(tup)
 
         return out_relation
 
@@ -250,7 +245,6 @@ class UnionNode(PlanNode):
     def execute(self):
         left_relation = self.left_child.execute()
         right_relation = self.right_child.execute()
-
         assert (left_relation.schema == right_relation.schema)
 
         out_relation = Relation(left_relation.schema, [], "%s_%s" % (left_relation.name, right_relation.name))
