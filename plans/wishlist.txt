@@ -1,0 +1,7 @@
+- Handle exceptions with something better than sys.exit()
+- Support multiple grouping attributes and multiple aggregation functions in a single query
+- Support theta joins
+- Support division
+- Support "table.attribute" syntax
+- Fix natural join ordering
+- More robust test suite for parser

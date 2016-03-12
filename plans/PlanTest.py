@@ -144,13 +144,12 @@ def RightOuterJoinTest():
 def ProjectTest():
     test_schema_1 = ["a", "b", "c"]
     project_schema = ["a", "c"]
-    project_lambda = lambda x: x * 2
 
     test_tuple_1 = [1, 2, 3]
 
     test_relation_1 = pn.Relation(test_schema_1, [test_tuple_1], "test1")
     expected_output_relation = pn.Relation(["a", "c"], [[2, 6]], "expected_output")
-    test_node = pn.ProjectNode(project_schema, test_relation_1, [project_lambda, project_lambda], [["a"], ["c"]])
+    test_node = pn.ProjectNode(project_schema, test_relation_1, ["a * 2", "c * 2"], [["a"], ["c"]])
     return test("Generalized Project Test 1", test_node, expected_output_relation)
 
 
@@ -158,11 +157,11 @@ def SelectTest():
     test_schema_1 = ["a", "b", "c"]
     test_tuple_1 = [1, 2, 1]
     test_tuple_2 = [1, 2, 3]
-    condition_lambda = lambda x, y: x == y
+    predicate = "a == c"
 
     test_relation_1 = pn.Relation(test_schema_1, [test_tuple_1, test_tuple_2], "test1")
     expected_output_relation = pn.Relation(["a", "b", "c"], [test_tuple_1], "expected_output")
-    test_node = pn.SelectNode(condition_lambda, "a", "c", test_relation_1)
+    test_node = pn.SelectNode(predicate, ["a", "c"], test_relation_1)
     return test("Select Test 1", test_node, expected_output_relation)
 
 
@@ -186,6 +185,7 @@ def GroupedSumTest():
     expected_output_relation = pn.Relation(["a", "sum_b"], [["ruddock", 6], ["lloyd", 5]], "expected_output")
     test_node = pn.AggregationNode(test_relation_1, "a", test_aggregation)
     return test("Grouped Sum Test 1", test_node, expected_output_relation)
+
 
 run_tests()
 

@@ -59,6 +59,12 @@ class Parser:
         :param input_string: The input string to extract from
         :return: The extracted string
         """
+
+        # handle the weird case of a null input string
+        if len(input_string) == 0:
+            sys.exit("expecting %s character but could not find in string" % open_char)
+
+
         ret_token = Indices(0, 0)
         index = 0
 
@@ -267,6 +273,7 @@ class Parser:
         return
 
     def parse_union(self, input_string):
+
         args = self.parse_infix(input_string)
         left_relation = self.parse(args[0])
         right_relation = self.parse(args[2])
@@ -284,19 +291,31 @@ class Parser:
         # TODO
         return
 
-    def parse_naturaljoin(self, input_string):
+    def natural_join_helper(self, input_string, is_left_outer, is_right_outer):
         args = self.parse_infix(input_string)
         left_relation = self.parse(args[0])
         right_relation = self.parse(args[2])
 
-        return pn.NaturalJoinNode(left_relation, right_relation, False, False)
+        return pn.NaturalJoinNode(left_relation, right_relation, is_left_outer, is_right_outer)
 
+    def parse_leftouter(self, input_string):
+        return self.natural_join_helper(input_string, True, False)
+
+    def parse_rightouter(self, input_string):
+        return self.natural_join_helper(input_string, False, True)
+
+    def parse_fullouter(self, input_string):
+        return self.natural_join_helper(input_string, True, True)
+
+    def parse_naturaljoin(self, input_string):
+        return self.natural_join_helper(input_string, False, False)
 
     def parse_assignment(self, input_string):
         args = self.parse_infix(input_string)
         self.relations[args[0]] = self.parse(args[2]).execute()
         return self.relations[args[0]]
 
+    # this maps prefix operator strings to the appropriate parser function
     prefix_parsers = {
         "SELECT": parse_select,
         "PROJECT": parse_project,
@@ -305,16 +324,24 @@ class Parser:
         "AGGREGATE": parse_aggregation
     }
 
+    # this maps infix operator strings to the appropriate parser function
     infix_parsers = {
         "UNION": parse_union,
         "CROSSJOIN": parse_crossjoin,
         "THETAJOIN": parse_thetajoin,
         "NATURALJOIN": parse_naturaljoin,
+        "LEFTOUTERJOIN": parse_leftouter,
+        "RIGHTOUTERJOIN": parse_rightouter,
+        "FULLOUTERJOIN": parse_fullouter,
         "<--": parse_assignment
     }
 
-    # parses an input infix string into [arg1, operator, arg2] output
     def parse_infix(self, input_string):
+        """
+        This helper function parses an input string known to be in infix form into an [arg1, operator, arg2] array
+        :param input_string: The string to be parsed
+        :return: The array of argument tokens as strings: [arg1, operator, arg2]
+        """
         output_strings = []
         working_string = input_string
 
@@ -349,6 +376,12 @@ class Parser:
         return output_strings
 
     def parse(self, input_string):
+        """
+        This is the entry function into the parser object. It takes an input string and passes it off
+        to the appropriate parser.
+        :param input_string: The query string to be parsed.
+        :return: An execution plan for the query.
+        """
 
         # strip spaces and redundant parentheses
         input_string = input_string.strip()
@@ -379,7 +412,7 @@ class Parser:
 
         # every valid input will have either a prefix or infix operator, so at this point the input is invalid
         else:
-            sys.exit("Invalid input - could not parse.")
+            sys.exit("Could not match to a prefix or infix operator - check parentheses?")
 
 
 
