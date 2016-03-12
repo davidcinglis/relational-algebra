@@ -280,6 +280,22 @@ class Parser:
 
         return pn.UnionNode(left_relation, right_relation)
 
+    def parse_intersect(self, input_string):
+
+        args = self.parse_infix(input_string)
+        left_relation = self.parse(args[0])
+        right_relation = self.parse(args[2])
+
+        return pn.IntersectionNode(left_relation, right_relation)
+
+    def parse_setdiff(self, input_string):
+
+        args = self.parse_infix(input_string)
+        left_relation = self.parse(args[0])
+        right_relation = self.parse(args[2])
+
+        return pn.SetDifferenceNode(left_relation, right_relation)
+
     def parse_crossjoin(self, input_string):
         args = self.parse_infix(input_string)
         left_relation = self.parse(args[0])
@@ -333,6 +349,8 @@ class Parser:
         "LEFTOUTERJOIN": parse_leftouter,
         "RIGHTOUTERJOIN": parse_rightouter,
         "FULLOUTERJOIN": parse_fullouter,
+        "SETDIFF": parse_setdiff,
+        "INTERSECT": parse_intersect,
         "<--": parse_assignment
     }
 
